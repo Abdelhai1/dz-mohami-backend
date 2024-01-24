@@ -11,6 +11,7 @@ urlpatterns = [
     
     
     #avocat
+    path('lawyer-details/<int:pk>/', views.showLawyer ,name='lawyer-details' ),
     path('lawyers-list/', views.showAllLawyers ,name='lawyers-list' ),
     path('lawyer-create/', views.createLawyer ,name='lawyer-create' ),
     path('lawyer-delete/<int:pk>/', views.deleteLawyer ,name='lawyer-delete' ),
@@ -29,6 +30,6 @@ urlpatterns = [
     path('reservation-delete/<int:reservation_id>/', views.deleteReservation, name='reservation-delete'),
     
     #login
-    path('login/', views.LoginView.as_view(), name='login'),
+    path('login/', views.LoginWithEmailAndPassword.as_view(), name='LoginWithEmailAndPassword'),
     
 ]

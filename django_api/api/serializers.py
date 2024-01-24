@@ -2,21 +2,31 @@ from rest_framework import serializers
 from .models import Reservation, User
 from .models import Lawyer
 from .models import Appointment
+from django.contrib.auth.hashers import make_password
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'name', 'email','address']
+        fields = ['id','email']
         #hna tqdr tshof kamel attribus t3 user tqdr tdir ('name','email')
         
-class LawyerSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
 
+class LawyerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lawyer
-        fields = ['id', 'user', 'number', 'specialization', 'experience_years']
-        
+        fields = ['id', 'name','fname','email','password']
+
+
+    def create(self, validated_data):
+        # Hash the password before saving
+        validated_data['password'] = make_password(validated_data['password'])
+        return super().create(validated_data)
+
+class LawyerProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lawyer
+        fields = ['id', 'name','fname','email','password','address','wilaya','latitude','longitude','rating','avocat_image','phone','description','social','experience_years']
 
 
 class AppointmentSerializer(serializers.ModelSerializer):

@@ -1,12 +1,15 @@
 from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from .serializers import AppointmentSerializer, LoginSerializer, ReservationSerializer, UserSerializer,LawyerSerializer
+from .serializers import AppointmentSerializer, LawyerProfileSerializer, LoginSerializer, ReservationSerializer, UserSerializer,LawyerSerializer
 from .models import Reservation, User,Lawyer,Appointment
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.authtoken.models import Token
+from django.contrib.auth.hashers import make_password, check_password
+from rest_framework.parsers import JSONParser
+from rest_framework.decorators import parser_classes
 # Create your views here.
 
 
@@ -38,10 +41,10 @@ def showUser(request , pk):
 
 #create the user
 @api_view(['POST'])
+@parser_classes([JSONParser])
 def createUser(request):
     serializer = UserSerializer(data=request.data)
     if serializer.is_valid():
-        
         serializer.save()
     return Response(serializer.data)
 
@@ -52,7 +55,8 @@ def updateUser(request , pk):
     serializer = UserSerializer(instance=user,data=request.data)
     if serializer.is_valid():
         serializer.save()
-    return Response(serializer.data)
+        return Response(serializer.data)
+    return Response(serializer.errors, status=400)
 
 #delete the user
 @api_view(['GET'])
@@ -65,25 +69,54 @@ def deleteUser(request , pk):
 #t3 l avocat
 
 @api_view(['GET'])
+@parser_classes([JSONParser])
 def showAllLawyers(request):
     lawyers = Lawyer.objects.all()
     serializer = LawyerSerializer(lawyers, many =True)
     return Response(serializer.data)
 
 @api_view(['POST'])
+@parser_classes([JSONParser])
 def createLawyer(request):
+
+    # Create a serializer instance with the request data
     serializer = LawyerSerializer(data=request.data)
+
+    # Validate the data
     if serializer.is_valid():
-        serializer.save()
+        # Save the validated data and get the created lawyer instance
+        lawyer_instance = serializer.save()
+
+        # You can customize the response data as needed
+        response_data = {
+            'id': lawyer_instance.id,
+            'name': lawyer_instance.name,
+            'email': lawyer_instance.email,
+            # Add other fields as needed
+        }
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
+    else:
+        # If validation fails, return errors in the response
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+#get lawyer with id
+@api_view(['GET'])
+def showLawyer(request , pk):
+    lawyer = Lawyer.objects.get(id = pk)
+    serializer = LawyerProfileSerializer(lawyer, many =False)
     return Response(serializer.data)
 
+
+#delete lawyer with id
 @api_view(['GET'])
 def deleteLawyer(request , pk):
     
     lawyer = Lawyer.objects.get(id = pk)
-    user = User.objects.get(id = lawyer.id)
     lawyer.delete()
-    user.delete()
+
     return Response('lawyer deleted successfully!')
 
 
@@ -200,22 +233,28 @@ def deleteReservation(request, reservation_id):
         print(e)
         return Response({'error': 'Internal Server Error'}, status=500)
     
-    
-class LoginView(APIView):
+
+class LoginWithEmailAndPassword(APIView):
     def post(self, request, *args, **kwargs):
-        serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        email = request.data.get('email')
+        password = request.data.get('password')
 
-        email = serializer.validated_data['email']
-        password = serializer.validated_data['password']
+        lawyer = Lawyer.objects.get(email=email)
+        if Lawyer.DoesNotExist:
+            auth = None
+        else:
+            if lawyer.check_password(password):
+                auth = lawyer
+            else:
+                auth = None
+                
 
-        # Authenticate the user
-        user = authenticate(request, email=email, password=password)
+        if auth != None:
+            token, created = Token.objects.get_or_create(user=auth)
 
-        if user:
-            # User is authenticated, create or get the token
-            token, created = Token.objects.get_or_create(user=user)
-
-            return Response({'token': token.key}, status=status.HTTP_200_OK)
+            # Set the token as a cookie in the response
+            response = Response({'token': token.key})
+            response.set_cookie(key='auth_token', value=token.key, httponly=True)
+            return response
         else:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
