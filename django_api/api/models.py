@@ -12,7 +12,7 @@ class Lawyer(models.Model):
     id = models.AutoField(primary_key=True,auto_created=True,serialize=False,verbose_name='ID')
     name = models.CharField(max_length=30,null=False,blank=False)
     fname = models.CharField(max_length=30,null=False,blank=False)
-    email = models.CharField(max_length=30,null=False,blank=False)
+    email = models.CharField(max_length=30,null=False,blank=False,)
     password = models.CharField(max_length=12,null=False,blank=False)
     address = models.CharField(max_length=60,null=True,blank=False)
     phone = models.CharField(max_length=30,null=True,blank=False)

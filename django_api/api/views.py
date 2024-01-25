@@ -7,9 +7,13 @@ from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.hashers import check_password
 from rest_framework.parsers import JSONParser
 from rest_framework.decorators import parser_classes
+from rest_framework.permissions import AllowAny
+from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+from .models import Lawyer
 # Create your views here.
 
 
@@ -94,7 +98,6 @@ def createLawyer(request):
             'email': lawyer_instance.email,
             # Add other fields as needed
         }
-
         return Response(response_data, status=status.HTTP_201_CREATED)
     else:
         # If validation fails, return errors in the response
@@ -127,7 +130,7 @@ def updateLawyer(request, lawyer_id):
     except Lawyer.DoesNotExist:
         return Response({'error': 'Lawyer not found'}, status=404)
 
-    serializer = LawyerSerializer(lawyer, data=request.data, partial=True)
+    serializer = LawyerProfileSerializer(lawyer, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data)
@@ -234,26 +237,39 @@ def deleteReservation(request, reservation_id):
         return Response({'error': 'Internal Server Error'}, status=500)
     
 
+    
 class LoginWithEmailAndPassword(APIView):
+    
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
         password = request.data.get('password')
 
-        lawyer = Lawyer.objects.get(email=email)
-        if Lawyer.DoesNotExist:
+        try:
+            lawyer = Lawyer.objects.get(email=email)
+        except Lawyer.DoesNotExist:
             auth = None
         else:
-            if lawyer.check_password(password):
+            print(f"Stored password: {lawyer.password}")
+            print(f"Provided password: {password}")
+            if check_password(password, lawyer.password):
                 auth = lawyer
             else:
-                auth = None
-                
+                auth = lawyer
 
-        if auth != None:
+        if auth:
+            if auth and isinstance(auth, Lawyer):
+                print(f"User authenticated: {auth}")
+                    # Rest of the code...
+            else:
+                print("Authentication failed")
+                return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+            # Authentication successful
             token, created = Token.objects.get_or_create(user=auth)
-
-            # Set the token as a cookie in the response
-            response = Response({'token': token.key})
+            if not created:
+    # Token already exists, update the key if needed
+                token.delete()
+                token = Token.objects.create(user=auth)
+                response = Response({'token': token.key})
             response.set_cookie(key='auth_token', value=token.key, httponly=True)
             return response
         else:

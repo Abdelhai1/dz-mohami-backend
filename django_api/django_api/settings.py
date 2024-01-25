@@ -42,9 +42,10 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_mysql',
     'corsheaders',
-    
+    'rest_framework.authtoken',
 
 ]
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -52,6 +53,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PARSER_CLASSES': (
         'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.JSONParser',
         'rest_framework.parsers.MultiPartParser'
     )
 }
