@@ -70,7 +70,7 @@ def deleteUser(request , pk):
     return Response('user deleted successfully!')
 
 
-#t3 l avocat
+#lawyer
 
 @api_view(['GET'])
 @parser_classes([JSONParser])
