@@ -25,6 +25,7 @@ class Lawyer(models.Model):
     longitude = models.FloatField(null = True)
     latitude = models.FloatField(null = True)
     experience_years = models.IntegerField(null = True)
+    activated = models.BooleanField(null=True)
 
 
     def __str__(self):
@@ -33,12 +34,12 @@ class Lawyer(models.Model):
 class Comment(models.Model):
     text = models.TextField()
     user_name = models.CharField(max_length=255)
-
+    rate = models.FloatField(default =0.5)
     def __str__(self):
         return f"{self.user_name}: {self.text}"
 
 class LawyerComment(models.Model):
-    lawyer = models.ForeignKey('Lawyer', on_delete=models.CASCADE)
+    lawyer = models.ForeignKey(Lawyer, on_delete=models.CASCADE)
     comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
 
     def __str__(self):

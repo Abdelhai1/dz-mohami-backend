@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Reservation, User
+from .models import Comment, Reservation, User
 from .models import Lawyer
 from .models import Appointment
 from django.contrib.auth.hashers import make_password
@@ -42,3 +42,13 @@ class ReservationSerializer(serializers.ModelSerializer):
 class LoginSerializer(serializers.Serializer):
     email = serializers.CharField()
     password = serializers.CharField(write_only=True)
+    
+class CommentSerializer(serializers.Serializer):
+    class Meta:
+        model = Comment
+        fields = ['id','user_name','text','rate']
+        
+class LawyerCommentSerializer(serializers.Serializer):
+    class Meta:
+        model = Comment
+        fields = ['id','lawyer','comment']

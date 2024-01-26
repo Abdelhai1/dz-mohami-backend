@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from .serializers import AppointmentSerializer, LawyerProfileSerializer, LoginSerializer, ReservationSerializer, UserSerializer,LawyerSerializer
+from .serializers import AppointmentSerializer, CommentSerializer, LawyerCommentSerializer, LawyerProfileSerializer, LoginSerializer, ReservationSerializer, UserSerializer,LawyerSerializer
 from .models import Reservation, User,Lawyer,Appointment
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
@@ -274,3 +274,15 @@ class LoginWithEmailAndPassword(APIView):
             return response
         else:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+#comments
+
+@api_view(['POST'])
+def createComment(request):
+    serializer = CommentSerializer(data=request.data)
+    serializer2 = LawyerCommentSerializer(data=request.data+serializer.data)
+    if serializer.is_valid() and serializer2.is_valid():
+        serializer.save()
+        serializer2.save()
+        return Response(serializer.data+serializer2.data)
+    return Response(serializer.errors, status=400)
