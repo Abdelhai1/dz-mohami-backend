@@ -1,7 +1,8 @@
+from django.http import JsonResponse
 from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from .serializers import AppointmentSerializer, CommentSerializer, LawyerCommentSerializer, LawyerProfileSerializer, LoginSerializer, ReservationSerializer, UserSerializer,LawyerSerializer
+from .serializers import AppointmentSerializer, CommentSerializer, LawyerCommentSerializer, LawyerProfileSerializer, LawyersSerializer, LoginSerializer, ReservationSerializer, UserSerializer,LawyerSerializer
 from .models import Reservation, User,Lawyer,Appointment
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
@@ -14,6 +15,9 @@ from rest_framework.permissions import AllowAny
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from .models import Lawyer
+import json
+from django.utils.http import urlsafe_base64_encode
+from django.utils.http import urlsafe_base64_decode
 # Create your views here.
 
 
@@ -75,40 +79,60 @@ def deleteUser(request , pk):
 @api_view(['GET'])
 @parser_classes([JSONParser])
 def showAllLawyers(request):
+    fLawyers = Lawyer.objects.all()[:8]
     lawyers = Lawyer.objects.all()
-    serializer = LawyerSerializer(lawyers, many =True)
+    total_lawyers = lawyers.count()
+    serializer = LawyersSerializer(fLawyers, many =True)
+    return Response({
+        'total_lawyers': total_lawyers,
+        'lawyers': serializer.data,
+    })
+
+@api_view(['GET'])
+@parser_classes([JSONParser])
+def showAllLawyersPaginated(request,n):
+    lawyers = Lawyer.objects.all()[8*(n-1):8+8*(n-1)]
+    serializer = LawyersSerializer(lawyers, many =True)
     return Response(serializer.data)
 
-@api_view(['POST'])
-@parser_classes([JSONParser])
-def createLawyer(request):
+class createLawyer(APIView):
+    @parser_classes([JSONParser])
+    def post(self, request, *args, **kwargs):
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            name = data.get('name')
+            email = data.get('email')
+            fname = data.get('fname')
+            password = data.get('password')
 
-    # Create a serializer instance with the request data
-    serializer = LawyerSerializer(data=request.data)
+            if name and email and password:
+                # Hash the password before saving to the database
+                hashed_password = urlsafe_base64_encode(str(password).encode('utf-8'))
+                # Create the Lawyer instance
+                lawyer = Lawyer.objects.create(name=name, email=email, password=hashed_password,fname= fname)
 
-    # Validate the data
-    if serializer.is_valid():
-        # Save the validated data and get the created lawyer instance
-        lawyer_instance = serializer.save()
 
-        # You can customize the response data as needed
-        response_data = {
-            'id': lawyer_instance.id,
-            'name': lawyer_instance.name,
-            'email': lawyer_instance.email,
-            # Add other fields as needed
-        }
-        return Response(response_data, status=status.HTTP_201_CREATED)
-    else:
-        # If validation fails, return errors in the response
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                response_data = {
+                    'lawyer_id': lawyer.id,
+                    'name': lawyer.name,
+                    'email': lawyer.email,
+                    # Include other user-related data as needed
+                }
+
+                return JsonResponse(response_data, status=201)
+            else:
+                return JsonResponse({'error': 'Name, email, and password are required'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
 
 
 #get lawyer with id
 @api_view(['GET'])
-def showLawyer(request , pk):
-    lawyer = Lawyer.objects.get(id = pk)
+@parser_classes([JSONParser])
+def showLawyer(request,pk):
+    p = int(urlsafe_base64_decode(pk))
+    lawyer = Lawyer.objects.get(id =p)
     serializer = LawyerProfileSerializer(lawyer, many =False)
     return Response(serializer.data)
 
@@ -116,20 +140,21 @@ def showLawyer(request , pk):
 #delete lawyer with id
 @api_view(['GET'])
 def deleteLawyer(request , pk):
-    
-    lawyer = Lawyer.objects.get(id = pk)
+    p = str(urlsafe_base64_decode(pk))
+    print(p)
+    lawyer = Lawyer.objects.get(id = p[2:-1])
     lawyer.delete()
 
     return Response('lawyer deleted successfully!')
 
 
 @api_view(['PUT'])
+@parser_classes([JSONParser])
 def updateLawyer(request, lawyer_id):
     try:
-        lawyer = Lawyer.objects.get(pk=lawyer_id)
+        lawyer = Lawyer.objects.get(id =lawyer_id)
     except Lawyer.DoesNotExist:
         return Response({'error': 'Lawyer not found'}, status=404)
-
     serializer = LawyerProfileSerializer(lawyer, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
@@ -152,7 +177,8 @@ def createAppointment(request):
 @api_view(['GET'])
 def getLawyerAppointments(request, lawyer_id):
     try:
-        lawyer = Lawyer.objects.get(pk=lawyer_id)
+        p = str(urlsafe_base64_decode(lawyer_id))
+        lawyer = Lawyer.objects.get(id=p[2:-1])
     except Lawyer.DoesNotExist:
         return Response({'error': 'Lawyer not found'}, status=404)
 
@@ -238,43 +264,41 @@ def deleteReservation(request, reservation_id):
     
 
     
+
+
 class LoginWithEmailAndPassword(APIView):
-    
+    @parser_classes([JSONParser])
     def post(self, request, *args, **kwargs):
-        email = request.data.get('email')
-        password = request.data.get('password')
-
         try:
-            lawyer = Lawyer.objects.get(email=email)
-        except Lawyer.DoesNotExist:
-            auth = None
-        else:
-            print(f"Stored password: {lawyer.password}")
-            print(f"Provided password: {password}")
-            if check_password(password, lawyer.password):
-                auth = lawyer
+            data = json.loads(request.body.decode('utf-8'))
+            email = data.get('email')
+            password = data.get('password')
+            
+            if email and password:
+                try:
+                    lawyer = Lawyer.objects.get(email=email)
+                except Lawyer.DoesNotExist:
+                    lawyer = None
+                p = str(urlsafe_base64_decode(lawyer.password))
+                if lawyer and password== p[2:-1]:
+                    # Authentication successful
+                    hashed_token = urlsafe_base64_encode(str(lawyer.id).encode('utf-8'))
+                    response_data = {
+                        'auth_token': hashed_token,
+                        'email': lawyer.email,
+                        # Include other user-related data as needed
+                    }
+                    
+                    response = Response(response_data)
+                    response.set_cookie(key='auth_token', value=hashed_token,secure=True)
+                    return response
+                else:
+                    # Authentication failed
+                    return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
             else:
-                auth = lawyer
-
-        if auth:
-            if auth and isinstance(auth, Lawyer):
-                print(f"User authenticated: {auth}")
-                    # Rest of the code...
-            else:
-                print("Authentication failed")
-                return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-            # Authentication successful
-            token, created = Token.objects.get_or_create(user=auth)
-            if not created:
-    # Token already exists, update the key if needed
-                token.delete()
-                token = Token.objects.create(user=auth)
-                response = Response({'token': token.key})
-            response.set_cookie(key='auth_token', value=token.key, httponly=True)
-            return response
-        else:
-            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-        
+                return Response({'error': 'Email and password are required'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 #comments
 
 @api_view(['POST'])

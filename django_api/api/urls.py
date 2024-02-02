@@ -11,9 +11,10 @@ urlpatterns = [
     
     
     #avocat
-    path('lawyer-details/<int:pk>/', views.showLawyer ,name='lawyer-details' ),
+    path('lawyer-details/<str:pk>', views.showLawyer ,name='lawyer-details' ),
     path('lawyers-list/', views.showAllLawyers ,name='lawyers-list' ),
-    path('lawyer-create/', views.createLawyer ,name='lawyer-create' ),
+    path('lawyers-listed/<int:n>/', views.showAllLawyersPaginated ,name='lawyers-listed' ),
+    path('lawyer-create/', views.createLawyer.as_view() ,name='lawyer-create' ),
     path('lawyer-delete/<int:pk>/', views.deleteLawyer ,name='lawyer-delete' ),
     path('lawyer-update/<int:lawyer_id>/', views.updateLawyer ,name='lawyer-update' ),
     
