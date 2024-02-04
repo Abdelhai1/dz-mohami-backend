@@ -8,21 +8,33 @@ from .models import Appointment
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id','email']
+        fields = ['id','email','activated']
         #hna tqdr tshof kamel attribus t3 user tqdr tdir ('name','email')
         
 
 class LawyerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lawyer
-        fields = ['id', 'name','fname','email','password','avocat_image']
+        fields = ['id', 'name','fname','email','avocat_image','rating']
 
+class LawyersWilayaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lawyer
+        fields = ['id', 'name','fname','email','password','avocat_image','rating','wilaya']
 
+class CitySerializer(serializers.Serializer):
+    wilaya = serializers.CharField()
 
+class MainScreenSerializer(serializers.Serializer):
+    email = serializers.CharField()
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    activated = serializers.BooleanField()
+    
 class LawyerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lawyer
-        fields = ['id', 'name','fname','email','password','address','wilaya','latitude','longitude','rating','avocat_image','phone','description','social','experience_years']
+        fields = ['id', 'name','fname','email','password','address','wilaya','latitude','longitude','rating','avocat_image','phone','description','social','experience_years','activated']
 
 class LawyersSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,7 +50,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
 class ReservationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
-        fields = ['id', 'user', 'lawyer', 'date', 'time', 'details']
+        fields = ['id', 'user', 'appointment','lawyer', 'details']
         
 class LoginSerializer(serializers.Serializer):
     email = serializers.CharField()
@@ -47,9 +59,6 @@ class LoginSerializer(serializers.Serializer):
 class CommentSerializer(serializers.Serializer):
     class Meta:
         model = Comment
-        fields = ['id','user_name','text','rate']
-        
-class LawyerCommentSerializer(serializers.Serializer):
-    class Meta:
-        model = Comment
-        fields = ['id','lawyer','comment']
+        fields = ['id','user','text','lawyer','rate']
+    def create(self, validated_data):
+        return Comment.objects.create(**validated_data)

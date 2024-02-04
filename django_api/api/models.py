@@ -25,7 +25,7 @@ class Lawyer(models.Model):
     longitude = models.FloatField(null = True)
     latitude = models.FloatField(null = True)
     experience_years = models.IntegerField(null = True)
-    activated = models.BooleanField(null=True)
+    activated = models.BooleanField(null=True,default = False)
 
 
     def __str__(self):
@@ -33,17 +33,13 @@ class Lawyer(models.Model):
 
 class Comment(models.Model):
     text = models.TextField()
-    user_name = models.CharField(max_length=255)
+    user = models.ForeignKey(User,on_delete=models.CASCADE)
     rate = models.FloatField(default =0.5)
+    lawyer = models.ForeignKey(Lawyer, on_delete=models.CASCADE)
     def __str__(self):
         return f"{self.user_name}: {self.text}"
 
-class LawyerComment(models.Model):
-    lawyer = models.ForeignKey(Lawyer, on_delete=models.CASCADE)
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
 
-    def __str__(self):
-        return f"{self.lawyer.name} - {self.comment.user_name}'s comment"
 
 class Categories(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -76,21 +72,23 @@ class LawyerSchedule(models.Model):
         return f"{self.lawyer.name} - {self.schedule.title}"
     
 class Appointment(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null = True,on_delete=models.SET_NULL)
     lawyer = models.ForeignKey(Lawyer, on_delete=models.CASCADE)
-    date = models.DateField()
-    time = models.TimeField()
-    details = models.TextField()
+    date = models.CharField(max_length = 100)
+    time = models.CharField(max_length = 100)
+    details = models.TextField(max_length = 100)
 
     def __str__(self):
-        return f"Appointment with {self.lawyer.user.name} {self.lawyer.user.name} on {self.date} at {self.time}"
+        return f"Appointment with {self.lawyer.name} {self.user} on {self.date} at {self.time}"
+    def update_user_id(self, new_user_id):
+        self.user_id = new_user_id
+        self.save()
     
 class Reservation(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     lawyer = models.ForeignKey(Lawyer, on_delete=models.CASCADE)
-    date = models.DateField()
-    time = models.TimeField()
+    appointment = models.ForeignKey(Appointment,on_delete = models.CASCADE)
     details = models.TextField()
 
     def __str__(self):
-        return f"Reservation for {self.user.name} with {self.lawyer.user.name} on {self.date} at {self.time}"
+        return f"Reservation for {self.user} with {self.lawyer.name} on {self.appointment.date} at {self.appointment.time}"

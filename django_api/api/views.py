@@ -1,10 +1,12 @@
+import genericpath
 from django.http import JsonResponse
 from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from .serializers import AppointmentSerializer, CommentSerializer, LawyerCommentSerializer, LawyerProfileSerializer, LawyersSerializer, LoginSerializer, ReservationSerializer, UserSerializer,LawyerSerializer
+from .serializers import AppointmentSerializer, CitySerializer, CommentSerializer, LawyerProfileSerializer, LawyersSerializer, LawyersWilayaSerializer, LoginSerializer, MainScreenSerializer, ReservationSerializer, UserSerializer,LawyerSerializer
 from .models import Reservation, User,Lawyer,Appointment
 from django.contrib.auth import authenticate
+from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.authtoken.models import Token
@@ -18,6 +20,8 @@ from .models import Lawyer
 import json
 from django.utils.http import urlsafe_base64_encode
 from django.utils.http import urlsafe_base64_decode
+from rest_framework import generics
+
 # Create your views here.
 
 
@@ -80,6 +84,14 @@ def deleteUser(request , pk):
 @parser_classes([JSONParser])
 def showAllLawyers(request):
     fLawyers = Lawyer.objects.all()[:8]
+    serializer = LawyersSerializer(fLawyers, many =True)
+    return Response(serializer.data,)
+
+
+@api_view(['GET'])
+@parser_classes([JSONParser])
+def showAllLawyersPaginated(request,n):
+    fLawyers = Lawyer.objects.all()[8*(n-1):8+8*(n-1)]
     lawyers = Lawyer.objects.all()
     total_lawyers = lawyers.count()
     serializer = LawyersSerializer(fLawyers, many =True)
@@ -87,13 +99,6 @@ def showAllLawyers(request):
         'total_lawyers': total_lawyers,
         'lawyers': serializer.data,
     })
-
-@api_view(['GET'])
-@parser_classes([JSONParser])
-def showAllLawyersPaginated(request,n):
-    lawyers = Lawyer.objects.all()[8*(n-1):8+8*(n-1)]
-    serializer = LawyersSerializer(lawyers, many =True)
-    return Response(serializer.data)
 
 class createLawyer(APIView):
     @parser_classes([JSONParser])
@@ -104,12 +109,14 @@ class createLawyer(APIView):
             email = data.get('email')
             fname = data.get('fname')
             password = data.get('password')
+            avocat_image = data.get('avocat_image')
+            rating = data.get('rating')
 
             if name and email and password:
                 # Hash the password before saving to the database
                 hashed_password = urlsafe_base64_encode(str(password).encode('utf-8'))
                 # Create the Lawyer instance
-                lawyer = Lawyer.objects.create(name=name, email=email, password=hashed_password,fname= fname)
+                lawyer = Lawyer.objects.create(name=name, email=email, password=hashed_password,fname= fname,avocat_image=avocat_image,rating=rating)
 
 
                 response_data = {
@@ -127,7 +134,80 @@ class createLawyer(APIView):
 
 
 
-#get lawyer with id
+#search for lawyer with name
+@api_view(['GET'])
+@parser_classes([JSONParser])
+def searchLawyer(request,n,name,rating,wilaya):
+    if(name!=' '):
+        if(rating == ' 'and wilaya == ' '):
+            lawyers = Lawyer.objects.filter(Q(name__icontains=name))[8*(n-1):8+8*(n-1)]
+            total_lawyers = Lawyer.objects.filter(Q(name__icontains=name)).count()
+        elif(rating != ' ' and wilaya == ' '):
+            if(rating == 'asc'):
+                lawyers = Lawyer.objects.filter(Q(name__icontains=name) ).order_by('rating')[8*(n-1):8+8*(n-1)]
+            elif(rating == 'desc'):
+                lawyers = Lawyer.objects.filter(Q(name__icontains=name) ).order_by('-rating')[8*(n-1):8+8*(n-1)]
+            total_lawyers = Lawyer.objects.filter(Q(name__icontains=name)).count()
+        elif(wilaya !=' ' and rating == ' ') :
+            lawyers = Lawyer.objects.filter(Q(name__icontains=name) & Q(wilaya__icontains=wilaya))[8*(n-1):8+8*(n-1)]
+            total_lawyers = Lawyer.objects.filter(Q(name__icontains=name) & Q(wilaya__icontains=wilaya)).count()
+        elif(rating != ' ' and wilaya != ' '):
+            if(rating == 'asc'):
+                lawyers = Lawyer.objects.filter(Q(name__icontains=name) & Q(wilaya__icontains=wilaya)).order_by('rating')[8*(n-1):8+8*(n-1)]
+            else:
+                lawyers = Lawyer.objects.filter(Q(name__icontains=name) & Q(wilaya__icontains=wilaya)).order_by('-rating')[8*(n-1):8+8*(n-1)]
+            total_lawyers = Lawyer.objects.filter(Q(name__icontains=name) & Q(wilaya__icontains=wilaya)).count()
+    else:
+        if(rating != ' ' and wilaya == ' '):
+            if(rating == 'asc'):
+                lawyers = Lawyer.objects.all().order_by('rating')[8*(n-1):8+8*(n-1)]
+            elif(rating=='desc'):
+                lawyers = Lawyer.objects.all().order_by('-rating')[8*(n-1):8+8*(n-1)]
+            total_lawyers = Lawyer.objects.all().count()
+        elif(wilaya !=' ' and rating == ' ') :
+            lawyers = Lawyer.objects.filter( Q(wilaya__icontains=wilaya))[8*(n-1):8+8*(n-1)]
+            total_lawyers = Lawyer.objects.filter(Q(wilaya__icontains=wilaya)).count()
+        elif(rating != ' ' and wilaya != ' '):
+            if(rating == 'asc'):
+                lawyers = Lawyer.objects.filter( Q(wilaya__icontains=wilaya)).order_by('rating')[8*(n-1):8+8*(n-1)]
+                total_lawyers = Lawyer.objects.filter(Q(wilaya__icontains=wilaya)).count()
+            else:
+                lawyers = Lawyer.objects.filter( Q(wilaya__icontains=wilaya)).order_by('-rating')[8*(n-1):8+8*(n-1)]
+                total_lawyers = Lawyer.objects.filter(Q(wilaya__icontains=wilaya)).count()
+        else:
+            lawyers = Lawyer.objects.all()[8*(n-1):8+8*(n-1)]
+            total_lawyers = Lawyer.objects.all().count()
+    serializer = LawyersWilayaSerializer(lawyers, many =True)
+    
+    return Response({
+        'total_lawyers': total_lawyers,
+        'lawyers': serializer.data,
+    })
+
+#get cities
+@api_view(['GET'])
+@parser_classes([JSONParser])
+def get_all_lawyer_cities(request):
+    cities = Lawyer.objects.values('wilaya').distinct()
+    city_serializer = CitySerializer(cities, many=True)
+    return Response(city_serializer.data)
+
+#get user hashed id
+@api_view(['GET'])
+@parser_classes([JSONParser])
+def getUser(request):
+    email = request.GET.get('email')
+    try:
+        user = User.objects.get(email=email)
+        hashed_token = urlsafe_base64_encode(str(user.id).encode('utf-8'))
+        user_data = {'id': hashed_token, 'email': user.email}
+        return JsonResponse(user_data)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
+
+#get lawyer with hashed id
 @api_view(['GET'])
 @parser_classes([JSONParser])
 def showLawyer(request,pk):
@@ -137,6 +217,29 @@ def showLawyer(request,pk):
     return Response(serializer.data)
 
 
+#get lawyer with id
+@api_view(['GET'])
+@parser_classes([JSONParser])
+def showLawyerWithId(request,pk):
+    lawyer = Lawyer.objects.get(id =pk)
+    serializer = LawyerProfileSerializer(lawyer, many =False)
+    return Response(serializer.data)
+
+
+#get user details
+@api_view(['GET'])
+@parser_classes([JSONParser])
+def mainScreenDetails(request,pk):
+    p = int(urlsafe_base64_decode(pk))
+    lawyer = Lawyer.objects.get(id =p)
+    if not lawyer:
+        user = User.objects.get(id=p)
+        serializer = MainScreenSerializer(user, many =False)
+        serializer.name = 'username'
+    else:
+        serializer = LawyerProfileSerializer(lawyer, many =False)
+    return Response(serializer.data)
+
 #delete lawyer with id
 @api_view(['GET'])
 def deleteLawyer(request , pk):
@@ -144,10 +247,9 @@ def deleteLawyer(request , pk):
     print(p)
     lawyer = Lawyer.objects.get(id = p[2:-1])
     lawyer.delete()
-
     return Response('lawyer deleted successfully!')
 
-
+#update lawyer with id
 @api_view(['PUT'])
 @parser_classes([JSONParser])
 def updateLawyer(request, lawyer_id):
@@ -177,8 +279,7 @@ def createAppointment(request):
 @api_view(['GET'])
 def getLawyerAppointments(request, lawyer_id):
     try:
-        p = str(urlsafe_base64_decode(lawyer_id))
-        lawyer = Lawyer.objects.get(id=p[2:-1])
+        lawyer = Lawyer.objects.get(id=lawyer_id)
     except Lawyer.DoesNotExist:
         return Response({'error': 'Lawyer not found'}, status=404)
 
@@ -191,49 +292,20 @@ def getLawyerAppointments(request, lawyer_id):
 #add a reservation
 @api_view(['POST'])
 def createReservation(request):
-    try:
-        user_id = request.data.get('user_id')
-        lawyer_id = request.data.get('lawyer_id')
-        date = request.data.get('date')
-        time = request.data.get('time')
-        details = request.data.get('details')
-
-        user = User.objects.get(pk=user_id)
-        lawyer = Lawyer.objects.get(pk=lawyer_id)
-
-        reservation = Reservation.objects.create(
-            user=user,
-            lawyer=lawyer,
-            date=date,
-            time=time,
-            details=details
-        )
-
-        serializer = ReservationSerializer(reservation)
-        
-        return Response(serializer.data, status=201)  # 201 Created
-    except user.DoesNotExist:
-        return Response({'error': 'user not found'}, status=404)
-    except Lawyer.DoesNotExist:
-        return Response({'error': 'Lawyer not found'}, status=404)
-    except Exception as e:
-        print(e)
-        return Response({'error': 'Internal Server Error'}, status=500)
+        serializer = ReservationSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+    
     
 @api_view(['POST'])
-def acceptReservation(request, reservation_id):
+def acceptReservation(request):
     try:
-        
-        reservation = Reservation.objects.get(pk=reservation_id)
-
-        
-        appointment = Appointment.objects.create(
-            user=reservation.user,
-            lawyer=reservation.lawyer,
-            date=reservation.date,
-            time=reservation.time,
-            details=reservation.details
-        )
+        reservation_id = request.data.get('reservation_id', None)
+        reservation = Reservation.objects.get(id=reservation_id)
+        appointment = Appointment.objects.get(id=reservation.appointment.id)
+        appointment.update_user_id(reservation.user.id)
 
         serializer = AppointmentSerializer(appointment)
 
@@ -286,6 +358,7 @@ class LoginWithEmailAndPassword(APIView):
                     response_data = {
                         'auth_token': hashed_token,
                         'email': lawyer.email,
+                        'activated': lawyer.activated
                         # Include other user-related data as needed
                     }
                     
@@ -299,14 +372,16 @@ class LoginWithEmailAndPassword(APIView):
                 return Response({'error': 'Email and password are required'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
 #comments
 
 @api_view(['POST'])
 def createComment(request):
     serializer = CommentSerializer(data=request.data)
-    serializer2 = LawyerCommentSerializer(data=request.data+serializer.data)
-    if serializer.is_valid() and serializer2.is_valid():
+
+    if serializer.is_valid():
         serializer.save()
-        serializer2.save()
-        return Response(serializer.data+serializer2.data)
-    return Response(serializer.errors, status=400)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
