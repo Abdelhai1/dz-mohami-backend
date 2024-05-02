@@ -4,14 +4,14 @@ from .models import Lawyer
 from .models import Appointment
 
 
-
+#User 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id','email','activated']
-        #hna tqdr tshof kamel attribus t3 user tqdr tdir ('name','email')
         
-
+        
+#Lawyer
 class LawyerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lawyer
